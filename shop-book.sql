@@ -130,3 +130,82 @@ SELECT title, SUM(amount) AS Количество, SUM(amount*price) AS Сумм
 FROM Title_sales
 GROUP BY title
 ORDER BY Сумма DESC;
+
+-- Задание 12: Включить нового человека в таблицу с клиентами. Его имя Попов Илья, его email popov@test, проживает он в Москве.
+INSERT INTO client(name_client, email, city_id) 
+SELECT 'Попов Илья', 'popov@test', city.city_id
+FROM client INNER JOIN city ON client.city_id = city.city_id
+WHERE city.name_city = 'Москва'
+LIMIT 1;
+
+
+-- Задание 13: Создать новый заказ для Попова Ильи. Его комментарий для заказа: «Связаться со мной по вопросу доставки».
+INSERT INTO buy(client_id, buy_description)
+SELECT client_id, 'Связаться со мной по вопросу доставки'
+FROM client
+WHERE name_client = 'Попов Илья';
+
+
+-- Задание 14: В таблицу buy_book добавить заказ с номером 5. Этот заказ должен содержать книгу Пастернака «Лирика» в количестве двух экземпляров и книгу Булгакова «Белая гвардия» в одном экземпляре.
+INSERT INTO buy_book(buy_id, book_id, amount)
+SELECT 5, book.book_id, 2
+FROM book
+    INNER JOIN author ON author.author_id = book.author_id
+WHERE author.name_author LIKE 'Пастернак %' AND book.title = 'Лирика';
+
+INSERT INTO buy_book(buy_id, book_id, amount)
+SELECT 5, book.book_id, 1
+FROM book
+    INNER JOIN author ON author.author_id = book.author_id
+WHERE author.name_author LIKE 'Булгаков %' AND book.title = 'Белая гвардия';
+
+
+-- Задание 15: Количество тех книг на складе, которые были включены в заказ с номером 5, уменьшить на то количество, которое в заказе с номером 5  указано.
+UPDATE book
+    INNER JOIN buy_book ON book.book_id = buy_book.book_id
+SET book.amount = book.amount - buy_book.amount
+WHERE buy_book.buy_id = 5;
+
+
+-- Задание 16: Создать счет (таблицу buy_pay) на оплату заказа с номером 5, в который включить название книг, их автора, цену, количество заказанных книг и  стоимость. Последний столбец назвать Стоимость. Информацию в таблицу занести в отсортированном по названиям книг виде.
+CREATE TABLE buy_pay AS
+SELECT title, name_author, book.price, buy_book.amount, book.price * buy_book.amount AS 'Стоимость'
+FROM
+    buy_book
+    INNER JOIN book ON buy_book.book_id = book.book_id
+    INNER JOIN author ON book.author_id = author.author_id
+WHERE buy_id = 5
+ORDER BY title;
+
+
+-- Задание 17: Создать общий счет (таблицу buy_pay) на оплату заказа с номером 5. Куда включить номер заказа, количество книг в заказе (название столбца Количество) и его общую стоимость (название столбца Итого). Для решения используйте ОДИН запрос.
+CREATE TABLE buy_pay AS
+SELECT buy_book.buy_id AS buy_id, SUM(buy_book.amount) AS Количество, SUM(buy_book.amount * book.price) AS Итого
+FROM book INNER JOIN buy_book ON book.book_id = buy_book.book_id
+WHERE buy_book.buy_id = 5;
+
+
+-- Задание 18: В таблицу buy_step для заказа с номером 5 включить все этапы из таблицы step, которые должен пройти этот заказ. В столбцы date_step_beg и date_step_end всех записей занести Null.
+INSERT INTO buy_step(buy_id, step_id, date_step_beg, date_step_end)
+SELECT buy.buy_id, step.step_id, Null, Null
+FROM buy, step
+WHERE buy.buy_id = 5
+
+
+-- задание 19: В таблицу buy_step занести дату 12.04.2020 выставления счета на оплату заказа с номером 5. Правильнее было бы занести не конкретную, а текущую дату. Это можно сделать с помощью функции Now(). Но при этом в разные дни будут вставляться разная дата, и задание нельзя будет проверить, поэтому  вставим дату 12.04.2020.
+UPDATE buy_step
+    INNER JOIN step ON buy_step.step_id = step.step_id
+SET date_step_beg = '2020-04-12'
+WHERE buy_step.buy_id = 5 AND step.name_step = 'Оплата';
+
+
+-- Задание 20: Завершить этап «Оплата» для заказа с номером 5, вставив в столбец date_step_end дату 13.04.2020, и начать следующий этап («Упаковка»), задав в столбце date_step_beg для этого этапа ту же дату.
+UPDATE buy_step
+    INNER JOIN step ON buy_step.step_id = step.step_id
+SET date_step_end = '2020-04-13'
+WHERE buy_step.buy_id = 5 AND step.name_step = 'Оплата';
+
+UPDATE buy_step
+    INNER JOIN step ON buy_step.step_id = step.step_id
+SET date_step_beg = '2020-04-13'
+WHERE buy_step.buy_id = 5 AND step.name_step = 'Упаковка';
